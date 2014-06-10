@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?><rsd version="1.0" xmlns="http://archipelago.phrasewise.com/rsd">
+    <service>
+        <engineName>django-xmlrpc-wp</engineName>
+        <engineLink>https://github.com/apn-online/django-xmlrpc-wp</engineLink>
+        <homePageLink>http://{{ HTTP_HOST }}/</homePageLink>
+        <apis>
+            <api name="WordPress" blogID="{{ CURRENT_SITE.id }}" preferred="true" apiLink="http://{{ HTTP_HOST }}{% url xmlrpc %}" />
+        </apis>
+    </service>
+</rsd>

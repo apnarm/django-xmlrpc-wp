@@ -1,0 +1,309 @@
+{% load staticfiles %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>XML-RPC</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="">
+        <meta name="author" content="">
+
+        <link href="{% static "xmlrpc_wp/renderjson/renderjson.css" %}" rel="stylesheet">
+        <link href="{% static "xmlrpc_wp/bootstrap/css/bootstrap.css" %}" rel="stylesheet">
+        <style>
+            body {
+                padding-top: 40px;
+                padding-bottom: 40px;
+            }
+            .page-header h1 {
+                padding-top: 60px;
+                font-size: 40px;
+                text-indent: -20px;
+            }
+            pre.python {
+                background: black;
+                color: whiteSmoke;
+                display: inline-block;
+                margin-top: 20px;
+            }
+            pre.python .python-in {
+                color: green;
+            }
+            pre.python .python-out {
+                color: red;
+            }
+
+            pre.code {
+                display: inline-block;
+                word-break: normal;
+                padding: 6px 8px 5px 8px;
+            }
+            pre.code .method {
+                float: left;
+            }
+
+            pre.help-text {
+                background: transparent;
+                border: none;
+                padding: 0;
+                word-break: normal;
+            }
+
+            .test-method .modal-body {
+                padding-bottom: 0;
+            }
+            .test-method form {
+                margin: 0;
+            }
+            .test-method legend {
+                margin: 0;
+                border: none;
+                font-family: Menlo, Monaco, "Courier New", monospace;
+                font-weight: bold;
+            }
+            .test-method .control-group {
+                margin: 5px;
+            }
+            .test-method .control-group + legend {
+                margin-top: -10px; /* Moves the closing bracket up a bit */
+            }
+            .test-method .controls {
+                margin-left: 40px;
+                vertical-align: bottom;
+            }
+            .test-method button {
+                margin-bottom: 20px;
+            }
+            
+        </style>
+        <link href="{% static "xmlrpc_wp/bootstrap/css/bootstrap-responsive.css" %}" rel="stylesheet">
+
+        <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+        <!--[if lt IE 9]>
+        <script src="//html5shim.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+    </head>
+
+    <body data-spy="scroll" data-offset="60">
+
+        <div class="navbar navbar-fixed-top">
+            <div class="navbar-inner">
+                <div class="container">
+                    <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </a>
+                    <a class="brand" href="#">XML-RPC</a>
+                    <div class="nav-collapse">
+                        <ul class="nav">
+                        {% for namespace, title, methods in method_lists %}
+                        <li><a href="#{{ namespace }}">{{ title }}</a></li>
+                        {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hero-unit">
+<pre class="python">
+<span class="python-in">In [1]:</span> import xmlrpclib
+<span class="python-in">In [2]:</span> url = 'http://{{ HTTP_HOST }}{% url xmlrpc %}'
+<span class="python-in">In [3]:</span> proxy = xmlrpclib.ServerProxy(url)
+<span class="python-in">In [4]:</span> proxy.system.listMethods()
+<span class="python-out">Out[4]:</span>
+['system.listMethods',
+ 'system.methodHelp',
+ 'system.methodSignature',
+ '...']
+</pre>
+        </div>
+
+        <div class="container">
+            {% for namespace, title, method_list in method_lists %}
+            <div class="page-header" id="{{ namespace }}">
+                <h1>{{ title }}</h1>
+            </div>
+            <table class="table ">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Usage</th>
+                        <th>Info</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for method_name, method_info in method_list %}
+                    <tr>
+                        <td><h4><a href="#{{ method_name|slugify }}" data-toggle="modal">{{ method_name }}</a></h4></td>
+                        <td>
+                            <pre class="code"><span class="method">proxy.{{ method_name }}(</span>{{ method_info.signature }})</pre>
+                            {% if method_info.returns or method_info.args %}
+                            <dl>
+                                {% if method_info.args %}
+                                    <dt>Arguments</dt>
+                                    {% for arg_name, arg_info in method_info.args.iteritems %}
+                                        <dd>{{ arg_name }} ({{ arg_info.type }})</dd>
+                                    {% endfor %}
+                                {% endif %}
+                                {% if method_info.returns %}
+                                    <dt>Returns</dt>
+                                    <dd>
+                                        {% if method_info.returns.type %}
+                                        {{ method_info.returns.type }}{% if method_info.returns.desc %},{% endif %}
+                                        {% endif %}{% if method_info.returns.desc %}
+                                        <em>{{ method_info.returns.desc }}</em>
+                                        {% endif %}
+                                    </dd>
+                                {% endif %}
+                            </dl>
+                            {% endif %}
+                        </td>
+                        <td><pre class="help-text">{{ method_info.help_text }}</pre></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endfor %}
+        </div>
+
+        {% for namespace, title, method_list in method_lists %}
+        {% for method_name, method_info in method_list %}
+        <div class="modal fade test-method" id="{{ method_name|slugify }}">
+            <div class="modal-header">
+                <a class="close" data-dismiss="modal">×</a>
+                <h3>{{ method_name }}</h3>
+            </div>
+            <div class="modal-body">
+                <form class="form-horizontal" action="{% url xmlrpc %}" data-method="{{ method_name }}" method="POST">
+                    <fieldset>
+                        {% if method_info.args %}
+                        <legend>proxy.{{ method_name }}(</legend>
+
+                        {% for arg_name, arg_info in method_info.args.iteritems %}
+                        <div class="control-group">
+                            <div class="controls">
+                                <div class="input-append">
+                                    <input
+                                        type="text"
+                                        class="input-xlarge"
+                                        name="input{{ forloop.counter0 }}"
+                                        id="input{{ forloop.counter0 }}"
+                                        placeholder="{{ arg_name }}"
+                                    />
+                                    {% if arg_info.type %}
+                                        <span class="add-on">
+                                            {{ arg_info.type }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <legend>)</legend>
+                        {% else %}
+                        <legend>proxy.{{ method_name }}()</legend>
+                        {% endif %}
+
+                        <button type="submit" class="btn btn-primary">POST</button>
+                        <div class="output"></div>
+                    </fieldset>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <a href="#" class="btn" data-dismiss="modal">Close</a>
+            </div>
+        </div>
+        {% endfor %}
+        {% endfor %}
+        
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>
+        <script src="{% static "xmlrpc_wp/bootstrap/js/bootstrap.js" %}" type="text/javascript"></script>
+        <script src="{% static "xmlrpc_wp/xmlrpc.js" %}" type="text/javascript"></script>
+        <script src="{% static "xmlrpc_wp/renderjson/jquery.renderjson.js" %}" type="text/javascript"></script>
+        <script type="text/javascript">
+            
+            var Validators ={
+                'int': function(value) {
+                    return Boolean(value.match(/^\d+$/));
+                },
+                'string': function(value) {
+                    return Boolean(value.length);
+                },
+                'input': function($input) {
+                    var validators = this;
+                    var $value_type = $input.siblings('.add-on');
+                    var is_valid = true;
+                    if ($value_type.length) {
+                        var validator = validators[$.trim($value_type.text())];
+                        if (validator) {
+                            is_valid = validator($input.val());
+                        }
+                    }
+                    if (is_valid) {
+                        $input.parents('.control-group').removeClass('error').addClass('success');
+                    } else {
+                        $input.parents('.control-group').removeClass('success').addClass('error');
+                    }
+                    return is_valid;
+                },
+                'form': function($form) {
+                    var validators = this;
+                    var is_valid = true;
+                    $form.find('input').each(function() {
+                        var $input = $(this);
+                        var input_valid = validators['input']($input);
+                        is_valid = is_valid && input_valid;
+                        // Break out of the loop if the form is now invalid.
+                        return is_valid;
+                    });
+                    return is_valid;
+                }
+            }
+
+            $('.test-method form input').bind('keyup change', function() {
+                Validators['input']($(this));
+            });
+
+            $('.test-method form').submit(function() {
+
+                var form = this;
+                var $form = $(form);
+
+                // Stop if the form data is not valid.
+                if (!Validators['form']($form)) {
+                    return false;
+                }
+
+                var $output = $form.find('.output');
+                $output.attr('class', 'output progress progress-info progress-striped active');
+                $output.html('<div class="bar" style="width: 100%"></div>');
+
+                var $button = $form.find('button');
+                $button.addClass('disabled').attr('disabled', 'disabled');
+
+                var url = form.action;
+                var method = $form.attr('data-method');
+                var args = []
+                $($form.serializeArray()).each(function() {
+                    args[args.length] = this.value;
+                });
+
+                xmlrpc(url, method, args, function(data) {
+                    $output.attr('class', 'output');
+                    $output.renderJSON(data);
+                }, function(error) {
+                    $output.attr('class', 'output alert alert-error');
+                    $output.append($('<h4 class="alert-heading">Error!</h4>'));
+                    $output.append($('<p></p>').text(error));
+                }, function() {
+                    $button.removeClass('disabled').removeAttr('disabled');
+                });
+
+                return false;
+            });
+        </script>
+    </body>
+</html>
